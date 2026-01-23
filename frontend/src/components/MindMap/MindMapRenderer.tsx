@@ -64,7 +64,7 @@ function calculateRadialLayout(
     const angleRange = endAngle - startAngle;
     const childAngleStep = angleRange / childCount;
 
-    node.children.forEach((child, index) => {
+    node.children.forEach((child: MindMapNode, index: number) => {
       const childStartAngle = startAngle + index * childAngleStep;
       const childEndAngle = childStartAngle + childAngleStep;
 
@@ -120,7 +120,7 @@ function calculateTreeLayout(
   let totalHeight = 0;
   const childPositions: PositionedNode[] = [];
 
-  node.children.forEach((child, index) => {
+  node.children.forEach((child: MindMapNode, index: number) => {
     const result = calculateTreeLayout(child, startX, currentY, level + 1, positionedNode);
     childPositions.push(...result.positions);
     currentY += result.height + verticalGap;

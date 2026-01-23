@@ -14,7 +14,6 @@ import type {
   PracticeSession,
   PracticeSessionSummary,
   PracticeType,
-  FillInBlankQuestion,
   MatchingPair,
   PracticeResult,
   FillInBlankAnswer,
