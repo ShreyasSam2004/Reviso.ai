@@ -1,4 +1,4 @@
-import { Target, CheckCircle, Clock, TrendingUp, Award, Calendar } from 'lucide-react';
+import { Target, CheckCircle, Clock, TrendingUp, Award } from 'lucide-react';
 import type { OverallStats } from '../../types';
 
 interface SummaryCardsProps {

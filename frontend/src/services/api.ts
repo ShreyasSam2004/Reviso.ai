@@ -45,6 +45,10 @@ import type {
   Favorite,
   AddFavoriteRequest,
   FavoriteCheckResponse,
+  SearchResponse,
+  MindMap,
+  MindMapGenerateRequest,
+  MindMapGenerateResponse,
 } from '../types';
 
 const API_BASE = '/api/v1';
@@ -405,4 +409,42 @@ export const removeFavoriteByItem = async (itemType: string, itemId: string): Pr
 export const checkFavorite = async (itemType: string, itemId: string): Promise<FavoriteCheckResponse> => {
   const response = await api.get<FavoriteCheckResponse>(`/favorites/check/${itemType}/${itemId}`);
   return response.data;
+};
+
+// Search
+export const searchContent = async (
+  query: string,
+  types?: string[],
+  documentId?: string,
+  limit?: number
+): Promise<SearchResponse> => {
+  const response = await api.get<SearchResponse>('/search', {
+    params: {
+      query,
+      types: types?.join(','),
+      document_id: documentId,
+      limit,
+    },
+  });
+  return response.data;
+};
+
+// Mind Maps
+export const getDocumentMindMaps = async (documentId: string): Promise<MindMap[]> => {
+  const response = await api.get<MindMap[]>(`/mindmaps/document/${documentId}`);
+  return response.data;
+};
+
+export const generateMindMap = async (request: MindMapGenerateRequest): Promise<MindMapGenerateResponse> => {
+  const response = await api.post<MindMapGenerateResponse>('/mindmaps/generate', request);
+  return response.data;
+};
+
+export const getMindMap = async (mindmapId: string): Promise<MindMap> => {
+  const response = await api.get<MindMap>(`/mindmaps/${mindmapId}`);
+  return response.data;
+};
+
+export const deleteMindMap = async (mindmapId: string): Promise<void> => {
+  await api.delete(`/mindmaps/${mindmapId}`);
 };

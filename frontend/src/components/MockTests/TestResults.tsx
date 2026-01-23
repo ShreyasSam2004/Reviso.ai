@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, Clock, Award, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 import type { TestResultResponse } from '../../types';
 

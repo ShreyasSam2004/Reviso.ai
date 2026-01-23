@@ -47,11 +47,11 @@ export function PerformanceChart({ data }: PerformanceChartProps) {
             borderRadius: '8px',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           }}
-          formatter={(value: number, name: string) => {
+          formatter={(value, name) => {
             if (name === 'average_score' || name === 'accuracy') {
               return [`${value}%`, name === 'average_score' ? 'Score' : 'Accuracy'];
             }
-            return [value, name];
+            return [value, String(name)];
           }}
         />
         <Legend />

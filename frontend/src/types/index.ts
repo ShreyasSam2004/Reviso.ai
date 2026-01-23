@@ -515,3 +515,27 @@ export interface FavoriteCheckResponse {
   is_favorite: boolean;
   favorite_id?: string;
 }
+
+// Mind Map types
+export interface MindMapNode {
+  id: string;
+  label: string;
+  children?: MindMapNode[];
+}
+
+export interface MindMap {
+  id: string;
+  document_id: string;
+  name: string;
+  root_node: MindMapNode;
+  max_depth: number;
+  created_at: string;
+}
+
+export interface MindMapGenerateRequest {
+  document_id: string;
+  max_depth?: number;
+  name?: string;
+}
+
+export interface MindMapGenerateResponse extends MindMap {}

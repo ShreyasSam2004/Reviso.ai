@@ -71,11 +71,14 @@ export function CategoryBreakdown({ categories, strongestCategory, weakestCatego
               border: '1px solid #e5e7eb',
               borderRadius: '8px',
             }}
-            formatter={(value: number, _name: string, props: { payload: typeof chartData[0] }) => [
-              `${value}% (${props.payload.correct}/${props.payload.questions})`,
-              'Accuracy',
-            ]}
-            labelFormatter={(label) => chartData.find((d) => d.name === label)?.fullName || label}
+            formatter={(value, _name, props) => {
+              const payload = props.payload as typeof chartData[0];
+              return [
+                `${value}% (${payload.correct}/${payload.questions})`,
+                'Accuracy',
+              ];
+            }}
+            labelFormatter={(label) => chartData.find((d) => d.name === label)?.fullName || String(label)}
           />
           <Bar dataKey="accuracy" radius={[0, 4, 4, 0]}>
             {chartData.map((entry, index) => (
