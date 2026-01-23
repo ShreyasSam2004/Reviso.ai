@@ -116,15 +116,16 @@ function calculateTreeLayout(
     return { positions, height: nodeHeight };
   }
 
+  const children = node.children;
   let currentY = startY;
   let totalHeight = 0;
   const childPositions: PositionedNode[] = [];
 
-  node.children.forEach((child: MindMapNode, index: number) => {
+  children.forEach((child: MindMapNode, index: number) => {
     const result = calculateTreeLayout(child, startX, currentY, level + 1, positionedNode);
     childPositions.push(...result.positions);
     currentY += result.height + verticalGap;
-    totalHeight += result.height + (index < node.children.length - 1 ? verticalGap : 0);
+    totalHeight += result.height + (index < children.length - 1 ? verticalGap : 0);
   });
 
   // Center parent vertically among children
