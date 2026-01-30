@@ -21,6 +21,10 @@ python-dotenv>=1.0.0
 aiofiles>=23.2.1
 httpx>=0.26.0
 
+# PDF & Image Generation
+Pillow>=10.0.0
+reportlab>=4.0.0
+
 # Authentication
 passlib[bcrypt]>=1.7.4
 bcrypt>=4.0.0,<5.0.0
