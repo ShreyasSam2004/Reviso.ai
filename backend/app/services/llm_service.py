@@ -215,13 +215,43 @@ Combined Summary:"""
             ),
         }
 
+    async def generate_completion(
+        self,
+        prompt: str,
+        max_tokens: int = 1000,
+        temperature: float = 0.3,
+        model: Optional[str] = None,
+    ) -> str:
+        """Generate a completion for a prompt (public method)."""
+        model = model or self.default_model
+
+        try:
+            response = self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert educational content creator."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            logger.error(f"LLM completion failed: {e}")
+            raise
+
     async def _generate_completion(
         self,
         prompt: str,
         max_tokens: int = 1000,
         model: Optional[str] = None,
     ) -> dict:
-        """Generate a completion for a prompt."""
+        """Generate a completion for a prompt (internal use)."""
         model = model or self.default_model
 
         response = self.client.chat.completions.create(
