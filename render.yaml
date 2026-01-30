@@ -1,0 +1,39 @@
+# Render Blueprint - Infrastructure as Code
+# https://render.com/docs/blueprint-spec
+
+services:
+  # Backend API Service
+  - type: web
+    name: reviso-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false  # You'll set this manually in Render dashboard
+      - key: DATABASE_URL
+        value: sqlite:///./data/reviso.db
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+    disk:
+      name: reviso-data
+      mountPath: /app/data
+      sizeGB: 1
+
+  # Frontend Service
+  - type: web
+    name: reviso-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile.render
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          name: reviso-backend
+          type: web
+          property: host
