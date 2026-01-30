@@ -30,7 +30,4 @@ services:
     plan: free
     envVars:
       - key: BACKEND_URL
-        fromService:
-          name: reviso-backend
-          type: web
-          property: host
+        sync: false  # Set this to your backend URL (e.g., reviso-backend-xyz.onrender.com)
