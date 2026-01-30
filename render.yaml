@@ -19,10 +19,7 @@ services:
         value: production
       - key: DEBUG
         value: "false"
-    disk:
-      name: reviso-data
-      mountPath: /app/data
-      sizeGB: 1
+    # Note: Free tier uses ephemeral storage (data resets on deploy)
 
   # Frontend Service
   - type: web
