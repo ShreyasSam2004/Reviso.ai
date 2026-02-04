@@ -116,18 +116,23 @@ async def get_current_user(
 ) -> Optional[UserDB]:
     """Get the current authenticated user from JWT token."""
     if token is None:
+        logger.warning("No token provided in request")
         return None
 
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         user_id: int = payload.get("sub")
         if user_id is None:
+            logger.warning("Token payload missing 'sub' claim")
             return None
         token_data = TokenData(user_id=user_id)
-    except JWTError:
+    except JWTError as e:
+        logger.warning(f"JWT decode error: {e}")
         return None
 
     user = await get_user_by_id(db, user_id=token_data.user_id)
+    if user is None:
+        logger.warning(f"User not found for id: {token_data.user_id}")
     return user
 
 
