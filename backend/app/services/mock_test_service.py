@@ -1,5 +1,6 @@
 """Mock test generation service."""
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -119,16 +120,21 @@ class MockTestService:
                     num_mcq = 0
                     num_tf = num_questions
 
-                # Generate questions
+                # Generate questions in PARALLEL for speed
                 questions_data = []
+                tasks = []
 
                 if num_mcq > 0:
-                    mcq_questions = await self._generate_mcq(content, num_mcq)
-                    questions_data.extend(mcq_questions)
+                    tasks.append(('mcq', self._generate_mcq(content, num_mcq)))
 
                 if num_tf > 0:
-                    tf_questions = await self._generate_true_false(content, num_tf)
-                    questions_data.extend(tf_questions)
+                    tasks.append(('tf', self._generate_true_false(content, num_tf)))
+
+                # Run all question generation tasks in parallel
+                if tasks:
+                    results = await asyncio.gather(*[t[1] for t in tasks])
+                    for result in results:
+                        questions_data.extend(result)
 
                 # Create test
                 test = MockTest(
