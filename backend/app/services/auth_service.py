@@ -121,12 +121,14 @@ async def get_current_user(
 
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id: int = payload.get("sub")
-        if user_id is None:
+        sub = payload.get("sub")
+        if sub is None:
             logger.warning("Token payload missing 'sub' claim")
             return None
+        # Convert sub to int (it's stored as string for JWT compliance)
+        user_id = int(sub)
         token_data = TokenData(user_id=user_id)
-    except JWTError as e:
+    except (JWTError, ValueError) as e:
         logger.warning(f"JWT decode error: {e}")
         return None
 

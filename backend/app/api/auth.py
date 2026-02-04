@@ -33,10 +33,10 @@ async def register(
     """Register a new user."""
     user = await create_user(db, user_data)
 
-    # Create access token
+    # Create access token (sub must be a string for JWT compliance)
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
-        data={"sub": user.id}, expires_delta=access_token_expires
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
 
     return Token(
@@ -60,10 +60,10 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Create access token
+    # Create access token (sub must be a string for JWT compliance)
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
-        data={"sub": user.id}, expires_delta=access_token_expires
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
 
     logger.info(f"User logged in: {user.email}")
@@ -91,7 +91,7 @@ async def login_form(
 
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
-        data={"sub": user.id}, expires_delta=access_token_expires
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
 
     return Token(
