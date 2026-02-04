@@ -1,5 +1,6 @@
 """LLM service for generating summaries using OpenAI."""
 
+import asyncio
 import logging
 from typing import Optional
 
@@ -162,19 +163,24 @@ class LLMService:
                 chunks[0], summary_type, custom_instructions
             )
 
-        # For multiple chunks, use map-reduce approach
+        # For multiple chunks, use map-reduce approach with PARALLEL processing
         total_prompt_tokens = 0
         total_completion_tokens = 0
 
-        # Map phase: summarize each chunk
-        chunk_summaries = []
-        for i, chunk in enumerate(chunks):
-            logger.info(f"Summarizing chunk {i + 1}/{len(chunks)}")
+        # Map phase: summarize all chunks in PARALLEL
+        logger.info(f"Summarizing {len(chunks)} chunks in parallel...")
 
-            result = await self.generate_summary(
-                chunk,
-                SummaryType.BRIEF,  # Use brief for individual chunks
-            )
+        async def summarize_chunk(chunk: str, index: int):
+            logger.info(f"Summarizing chunk {index + 1}/{len(chunks)}")
+            return await self.generate_summary(chunk, SummaryType.BRIEF)
+
+        # Process all chunks concurrently
+        results = await asyncio.gather(
+            *[summarize_chunk(chunk, i) for i, chunk in enumerate(chunks)]
+        )
+
+        chunk_summaries = []
+        for result in results:
             chunk_summaries.append(result["content"])
             total_prompt_tokens += result["prompt_tokens"]
             total_completion_tokens += result["completion_tokens"]

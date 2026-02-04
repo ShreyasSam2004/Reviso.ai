@@ -29,12 +29,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       const token = localStorage.getItem(TOKEN_KEY);
       if (token) {
-        try {
-          const userData = await getCurrentUser();
-          setUser(userData);
-        } catch {
-          // Token is invalid, remove it
-          localStorage.removeItem(TOKEN_KEY);
+        // Retry logic for cold starts / network issues
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            const userData = await getCurrentUser();
+            setUser(userData);
+            break;
+          } catch (err: unknown) {
+            const axiosError = err as { response?: { status?: number } };
+            // Only remove token if it's actually invalid (401/403)
+            if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
+              localStorage.removeItem(TOKEN_KEY);
+              break;
+            }
+            // Network error or server issue - retry
+            retries--;
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+            }
+          }
         }
       }
       setIsLoading(false);

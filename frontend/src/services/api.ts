@@ -66,6 +66,25 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle 401 responses globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Don't clear token for login/register endpoints
+      const url = error.config?.url || '';
+      if (!url.includes('/auth/login') && !url.includes('/auth/register') && !url.includes('/auth/me')) {
+        localStorage.removeItem('auth_token');
+        // Redirect to login if not already there
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Authentication
 export const login = async (credentials: LoginCredentials): Promise<AuthToken> => {
   const response = await api.post<AuthToken>('/auth/login', credentials);
