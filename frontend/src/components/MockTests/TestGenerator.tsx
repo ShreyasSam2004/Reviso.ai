@@ -1,7 +1,14 @@
-import { useState } from 'react';
-import { Brain, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Brain, Loader2, CheckCircle, FileText, HelpCircle, ToggleLeft, Sparkles } from 'lucide-react';
 import { generateMockTest } from '../../services/api';
 import type { MockTestGenerateResponse } from '../../types';
+
+interface GenerationStep {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  status: 'pending' | 'active' | 'completed';
+}
 
 interface TestGeneratorProps {
   documentId: string;
@@ -21,6 +28,65 @@ export function TestGenerator({
   const [timeLimit, setTimeLimit] = useState<number | ''>('');
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Build steps based on selected question types
+  const buildSteps = (): GenerationStep[] => {
+    const steps: GenerationStep[] = [
+      { id: 'prepare', label: 'Preparing document content...', icon: <FileText className="w-4 h-4" />, status: 'pending' },
+    ];
+    if (includeMcq) {
+      steps.push({ id: 'mcq', label: 'Generating multiple choice questions...', icon: <HelpCircle className="w-4 h-4" />, status: 'pending' });
+    }
+    if (includeTrueFalse) {
+      steps.push({ id: 'tf', label: 'Generating true/false questions...', icon: <ToggleLeft className="w-4 h-4" />, status: 'pending' });
+    }
+    steps.push({ id: 'finalize', label: 'Finalizing your test...', icon: <Sparkles className="w-4 h-4" />, status: 'pending' });
+    return steps;
+  };
+
+  // Progress through steps while generating
+  useEffect(() => {
+    if (generating && generationSteps.length > 0) {
+      // Start the first step immediately
+      setGenerationSteps(steps => steps.map((s, i) => ({
+        ...s,
+        status: i === 0 ? 'active' : 'pending'
+      })));
+
+      // Progress through steps at intervals
+      const stepDuration = Math.max(3000, (numQuestions * 1000) / generationSteps.length);
+      stepIntervalRef.current = setInterval(() => {
+        setCurrentStepIndex(prev => {
+          const next = prev + 1;
+          if (next < generationSteps.length) {
+            setGenerationSteps(steps => steps.map((s, i) => ({
+              ...s,
+              status: i < next ? 'completed' : i === next ? 'active' : 'pending'
+            })));
+            return next;
+          }
+          return prev;
+        });
+      }, stepDuration);
+    }
+
+    return () => {
+      if (stepIntervalRef.current) {
+        clearInterval(stepIntervalRef.current);
+      }
+    };
+  }, [generating, generationSteps.length, numQuestions]);
+
+  // Cleanup on completion
+  useEffect(() => {
+    if (!generating && stepIntervalRef.current) {
+      clearInterval(stepIntervalRef.current);
+      stepIntervalRef.current = null;
+    }
+  }, [generating]);
 
   const handleGenerate = async () => {
     if (!includeMcq && !includeTrueFalse) {
@@ -28,6 +94,10 @@ export function TestGenerator({
       return;
     }
 
+    // Initialize progress steps
+    const steps = buildSteps();
+    setGenerationSteps(steps);
+    setCurrentStepIndex(0);
     setGenerating(true);
     setError(null);
 
@@ -40,7 +110,14 @@ export function TestGenerator({
         include_true_false: includeTrueFalse,
         time_limit_minutes: timeLimit || undefined,
       });
-      onGenerated(response);
+
+      // Mark all steps as completed
+      setGenerationSteps(steps => steps.map(s => ({ ...s, status: 'completed' as const })));
+
+      // Small delay to show completion before callback
+      setTimeout(() => {
+        onGenerated(response);
+      }, 500);
     } catch (err: unknown) {
       console.error('Generation error:', err);
       if (err && typeof err === 'object' && 'response' in err) {
@@ -49,8 +126,8 @@ export function TestGenerator({
       } else {
         setError(err instanceof Error ? err.message : 'Failed to generate test');
       }
-    } finally {
       setGenerating(false);
+      setGenerationSteps([]);
     }
   };
 
@@ -149,23 +226,63 @@ export function TestGenerator({
         </div>
       )}
 
-      <button
-        onClick={handleGenerate}
-        disabled={generating}
-        className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
-      >
-        {generating ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Generating Test...
-          </>
-        ) : (
-          <>
-            <Brain className="w-5 h-5" />
-            Generate {numQuestions} Questions
-          </>
-        )}
-      </button>
+      {/* Progress Steps Display */}
+      {generating && generationSteps.length > 0 && (
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
+          <div className="flex items-center gap-2 mb-4">
+            <Loader2 className="w-5 h-5 text-green-600 animate-spin" />
+            <span className="font-medium text-green-800">Generating your test...</span>
+          </div>
+          <div className="space-y-3">
+            {generationSteps.map((step, index) => (
+              <div
+                key={step.id}
+                className={`flex items-center gap-3 transition-all duration-300 ${
+                  step.status === 'pending' ? 'opacity-40' :
+                  step.status === 'active' ? 'opacity-100' : 'opacity-70'
+                }`}
+              >
+                <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                  step.status === 'completed' ? 'bg-green-500 text-white' :
+                  step.status === 'active' ? 'bg-green-100 text-green-600 animate-pulse' :
+                  'bg-gray-200 text-gray-400'
+                }`}>
+                  {step.status === 'completed' ? (
+                    <CheckCircle className="w-4 h-4" />
+                  ) : step.status === 'active' ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <span className="text-xs">{index + 1}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${
+                    step.status === 'active' ? 'text-green-700 font-medium' :
+                    step.status === 'completed' ? 'text-green-600' :
+                    'text-gray-500'
+                  }`}>
+                    {step.label}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 text-xs text-green-600 text-center">
+            This may take up to a minute depending on the number of questions
+          </div>
+        </div>
+      )}
+
+      {!generating && (
+        <button
+          onClick={handleGenerate}
+          disabled={generating}
+          className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+        >
+          <Brain className="w-5 h-5" />
+          Generate {numQuestions} Questions
+        </button>
+      )}
 
       <p className="text-xs text-gray-400 text-center">
         AI will create questions based on your document content

@@ -75,6 +75,7 @@ api.interceptors.response.use(
       const url = error.config?.url || '';
       if (!url.includes('/auth/login') && !url.includes('/auth/register') && !url.includes('/auth/me')) {
         localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
         // Redirect to login if not already there
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';
