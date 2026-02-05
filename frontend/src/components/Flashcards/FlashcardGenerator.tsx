@@ -26,8 +26,8 @@ export function FlashcardGenerator({
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([]);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentStepRef = useRef(0);
 
   // Build steps for flashcard generation
   const buildSteps = (): GenerationStep[] => {
@@ -51,17 +51,14 @@ export function FlashcardGenerator({
       // Progress through steps at intervals
       const stepDuration = Math.max(2500, (numCards * 800) / generationSteps.length);
       stepIntervalRef.current = setInterval(() => {
-        setCurrentStepIndex(prev => {
-          const next = prev + 1;
-          if (next < generationSteps.length) {
-            setGenerationSteps(steps => steps.map((s, i) => ({
-              ...s,
-              status: i < next ? 'completed' : i === next ? 'active' : 'pending'
-            })));
-            return next;
-          }
-          return prev;
-        });
+        const next = currentStepRef.current + 1;
+        if (next < generationSteps.length) {
+          currentStepRef.current = next;
+          setGenerationSteps(steps => steps.map((s, i) => ({
+            ...s,
+            status: i < next ? 'completed' : i === next ? 'active' : 'pending'
+          })));
+        }
       }, stepDuration);
     }
 
@@ -84,7 +81,7 @@ export function FlashcardGenerator({
     // Initialize progress steps
     const steps = buildSteps();
     setGenerationSteps(steps);
-    setCurrentStepIndex(0);
+    currentStepRef.current = 0;
     setGenerating(true);
     setError(null);
 

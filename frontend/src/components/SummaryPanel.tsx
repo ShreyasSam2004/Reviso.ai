@@ -40,8 +40,8 @@ export function SummaryPanel({ document, summaries, onSummaryGenerated }: Summar
 
   // Progress indicator state
   const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([]);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentStepRef = useRef(0);
 
   const buildSteps = (type: SummaryType): GenerationStep[] => {
     const steps: GenerationStep[] = [
@@ -69,17 +69,14 @@ export function SummaryPanel({ document, summaries, onSummaryGenerated }: Summar
 
       const stepDuration = Math.max(2500, 10000 / generationSteps.length);
       stepIntervalRef.current = setInterval(() => {
-        setCurrentStepIndex(prev => {
-          const next = prev + 1;
-          if (next < generationSteps.length) {
-            setGenerationSteps(steps => steps.map((s, i) => ({
-              ...s,
-              status: i < next ? 'completed' : i === next ? 'active' : 'pending'
-            })));
-            return next;
-          }
-          return prev;
-        });
+        const next = currentStepRef.current + 1;
+        if (next < generationSteps.length) {
+          currentStepRef.current = next;
+          setGenerationSteps(steps => steps.map((s, i) => ({
+            ...s,
+            status: i < next ? 'completed' : i === next ? 'active' : 'pending'
+          })));
+        }
       }, stepDuration);
     }
 
@@ -101,7 +98,7 @@ export function SummaryPanel({ document, summaries, onSummaryGenerated }: Summar
   const handleGenerate = async () => {
     const steps = buildSteps(selectedType);
     setGenerationSteps(steps);
-    setCurrentStepIndex(0);
+    currentStepRef.current = 0;
     setGenerating(true);
     setError(null);
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Sun, Moon, Search, Bell, Command, LogOut, User, ChevronDown, X, FileText, Brain, Sparkles, BookOpen, Clock, Shield, Mail, Calendar } from 'lucide-react';
+import { Sun, Moon, Search, Bell, Command, LogOut, User, ChevronDown, X, Brain, Sparkles, BookOpen, Clock, Shield, Mail, Calendar } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
