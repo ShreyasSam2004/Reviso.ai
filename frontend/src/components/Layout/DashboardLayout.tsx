@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Sun, Moon, Search, Bell, Command, LogOut, User, ChevronDown } from 'lucide-react';
+import { Sun, Moon, Search, Bell, Command, LogOut, User, ChevronDown, X, FileText, Brain, Sparkles, BookOpen, Clock, Shield, Mail, Calendar } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,19 +23,33 @@ export function DashboardLayout() {
   const currentPage = pageInfo[location.pathname] || { title: 'Reviso', subtitle: '' };
 
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
-  // Close menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
       }
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Tips/notifications content
+  const notifications = [
+    { icon: <Sparkles className="w-4 h-4 text-purple-500" />, title: 'Generate Flashcards', description: 'Upload a PDF and create AI-powered flashcards instantly', time: 'Tip' },
+    { icon: <Brain className="w-4 h-4 text-green-500" />, title: 'Mock Tests Available', description: 'Test your knowledge with AI-generated MCQ and True/False questions', time: 'Tip' },
+    { icon: <BookOpen className="w-4 h-4 text-blue-500" />, title: 'Practice Mode', description: 'Try fill-in-the-blank and matching exercises', time: 'Tip' },
+    { icon: <Calendar className="w-4 h-4 text-orange-500" />, title: 'Schedule Study Sessions', description: 'Plan recurring tests to stay on track', time: 'Tip' },
+  ];
 
   const handleLogout = () => {
     setShowUserMenu(false);
@@ -90,13 +104,46 @@ export function DashboardLayout() {
             </div>
 
             {/* Notification bell */}
-            <button
-              className="relative p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
-              title="Notifications"
-            >
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-800" />
-            </button>
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }}
+                className="relative p-2.5 rounded-xl bg-gray-100 dark:bg-gray-700/50 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors"
+                title="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-800" />
+              </button>
+
+              {showNotifications && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                    <button onClick={() => setShowNotifications(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.map((notif, i) => (
+                      <div key={i} className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0">
+                        <div className="flex gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                            {notif.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{notif.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{notif.description}</p>
+                          </div>
+                          <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">{notif.time}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                    <p className="text-xs text-center text-gray-400 dark:text-gray-500">You're all caught up</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Theme toggle */}
             <button
@@ -158,6 +205,7 @@ export function DashboardLayout() {
                   {/* Menu items */}
                   <div className="py-2">
                     <button
+                      onClick={() => { setShowProfileModal(true); setShowUserMenu(false); }}
                       className="w-full px-4 py-2 flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
                     >
                       <User className="w-4 h-4" />
@@ -188,6 +236,110 @@ export function DashboardLayout() {
           </div>
         </main>
       </div>
+
+      {/* Profile Settings Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowProfileModal(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4 overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Settings</h2>
+              <button onClick={() => setShowProfileModal(false)} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Profile Content */}
+            <div className="p-6 space-y-6">
+              {/* Avatar and Name */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/25">
+                  {user ? getInitials(user.username) : 'U'}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{user?.username || 'User'}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{user?.email || ''}</p>
+                </div>
+              </div>
+
+              {/* Account Info */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Account Information</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                    <User className="w-4 h-4 text-gray-400" />
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Username</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.username}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                    <Shield className="w-4 h-4 text-gray-400" />
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Account Status</p>
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400">Active</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Member Since</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preferences */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Preferences</h4>
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    {isDark ? <Moon className="w-4 h-4 text-gray-400" /> : <Sun className="w-4 h-4 text-gray-400" />}
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">Dark Mode</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{isDark ? 'Enabled' : 'Disabled'}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={toggleTheme}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${isDark ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isDark ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-between">
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Loader2, Sparkles, List, FileText, BookOpen, Settings, Send, MessageSquare } from 'lucide-react';
+import { Loader2, Sparkles, List, FileText, BookOpen, Settings, Send, MessageSquare, CheckCircle } from 'lucide-react';
 import { generateSummary, askQuestion } from '../services/api';
 import { FavoriteButton } from './FavoriteButton';
 import { SpeakButton } from './common/SpeakButton';
 import type { Document, Summary, SummaryType, QuestionAnswer } from '../types';
+
+interface GenerationStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'completed';
+}
 
 interface SummaryPanelProps {
   document: Document;
@@ -32,7 +38,70 @@ export function SummaryPanel({ document, summaries, onSummaryGenerated }: Summar
   const [asking, setAsking] = useState(false);
   const [qaHistory, setQaHistory] = useState<QuestionAnswer[]>([]);
 
+  // Progress indicator state
+  const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const buildSteps = (type: SummaryType): GenerationStep[] => {
+    const steps: GenerationStep[] = [
+      { id: 'retrieve', label: 'Retrieving document content...', status: 'pending' },
+      { id: 'analyze', label: 'Analyzing key sections...', status: 'pending' },
+    ];
+    if (type === 'key_points') {
+      steps.push({ id: 'extract', label: 'Extracting key points...', status: 'pending' });
+    } else if (type === 'chapter') {
+      steps.push({ id: 'sections', label: 'Organizing by sections...', status: 'pending' });
+    } else {
+      steps.push({ id: 'compose', label: 'Composing summary...', status: 'pending' });
+    }
+    steps.push({ id: 'finalize', label: 'Finalizing output...', status: 'pending' });
+    return steps;
+  };
+
+  // Progress through steps while generating
+  useEffect(() => {
+    if (generating && generationSteps.length > 0) {
+      setGenerationSteps(steps => steps.map((s, i) => ({
+        ...s,
+        status: i === 0 ? 'active' : 'pending'
+      })));
+
+      const stepDuration = Math.max(2500, 10000 / generationSteps.length);
+      stepIntervalRef.current = setInterval(() => {
+        setCurrentStepIndex(prev => {
+          const next = prev + 1;
+          if (next < generationSteps.length) {
+            setGenerationSteps(steps => steps.map((s, i) => ({
+              ...s,
+              status: i < next ? 'completed' : i === next ? 'active' : 'pending'
+            })));
+            return next;
+          }
+          return prev;
+        });
+      }, stepDuration);
+    }
+
+    return () => {
+      if (stepIntervalRef.current) {
+        clearInterval(stepIntervalRef.current);
+      }
+    };
+  }, [generating, generationSteps.length]);
+
+  // Cleanup on completion
+  useEffect(() => {
+    if (!generating && stepIntervalRef.current) {
+      clearInterval(stepIntervalRef.current);
+      stepIntervalRef.current = null;
+    }
+  }, [generating]);
+
   const handleGenerate = async () => {
+    const steps = buildSteps(selectedType);
+    setGenerationSteps(steps);
+    setCurrentStepIndex(0);
     setGenerating(true);
     setError(null);
 
@@ -42,12 +111,21 @@ export function SummaryPanel({ document, summaries, onSummaryGenerated }: Summar
         summary_type: selectedType,
         custom_instructions: selectedType === 'custom' ? customInstructions : undefined,
       });
-      onSummaryGenerated(summary);
-      setActiveSummary(summary);
+
+      // Mark all steps as completed
+      setGenerationSteps(steps => steps.map(s => ({ ...s, status: 'completed' as const })));
+
+      // Small delay to show completion
+      setTimeout(() => {
+        onSummaryGenerated(summary);
+        setActiveSummary(summary);
+        setGenerating(false);
+        setGenerationSteps([]);
+      }, 500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate summary');
-    } finally {
       setGenerating(false);
+      setGenerationSteps([]);
     }
   };
 
@@ -121,30 +199,61 @@ export function SummaryPanel({ document, summaries, onSummaryGenerated }: Summar
       )}
 
       {/* Generate Button */}
-      <button
-        onClick={handleGenerate}
-        disabled={generating || (selectedType === 'custom' && !customInstructions.trim())}
-        className={`
-          w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium
-          transition-colors
-          ${generating
-            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
-          }
-        `}
-      >
-        {generating ? (
-          <>
-            <Loader2 className="w-5 h-5 animate-spin" />
-            Generating...
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-5 h-5" />
-            Generate Summary
-          </>
-        )}
-      </button>
+      {!generating && (
+        <button
+          onClick={handleGenerate}
+          disabled={selectedType === 'custom' && !customInstructions.trim()}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Sparkles className="w-5 h-5" />
+          Generate Summary
+        </button>
+      )}
+
+      {/* Progress Steps Display */}
+      {generating && generationSteps.length > 0 && (
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-blue-100 dark:border-blue-800">
+          <div className="flex items-center gap-2 mb-4">
+            <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
+            <span className="font-medium text-blue-800 dark:text-blue-300">Generating your summary...</span>
+          </div>
+          <div className="space-y-3">
+            {generationSteps.map((step, index) => (
+              <div
+                key={step.id}
+                className={`flex items-center gap-3 transition-all duration-300 ${
+                  step.status === 'pending' ? 'opacity-40' :
+                  step.status === 'active' ? 'opacity-100' : 'opacity-70'
+                }`}
+              >
+                <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                  step.status === 'completed' ? 'bg-blue-500 text-white' :
+                  step.status === 'active' ? 'bg-blue-100 dark:bg-blue-800 text-blue-600 dark:text-blue-400 animate-pulse' :
+                  'bg-gray-200 dark:bg-gray-700 text-gray-400'
+                }`}>
+                  {step.status === 'completed' ? (
+                    <CheckCircle className="w-4 h-4" />
+                  ) : step.status === 'active' ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <span className="text-xs">{index + 1}</span>
+                  )}
+                </div>
+                <span className={`text-sm ${
+                  step.status === 'active' ? 'text-blue-700 dark:text-blue-300 font-medium' :
+                  step.status === 'completed' ? 'text-blue-600 dark:text-blue-400' :
+                  'text-gray-500 dark:text-gray-400'
+                }`}>
+                  {step.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 text-xs text-blue-600 dark:text-blue-400 text-center">
+            This may take a moment depending on the document size
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
