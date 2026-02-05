@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Search, Upload, Trash2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { BookOpen, Search, Upload, Trash2, ChevronDown, ChevronUp, Loader2, CheckCircle } from 'lucide-react';
 import {
   listDocuments,
   getDocumentGlossaries,
@@ -77,6 +77,12 @@ function TermCard({ term, documentName }: TermCardProps) {
   );
 }
 
+interface GenerationStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'completed';
+}
+
 export function GlossaryPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<string>('');
@@ -88,6 +94,55 @@ export function GlossaryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterImportance, setFilterImportance] = useState<string>('');
+
+  // Progress indicator state
+  const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([]);
+  const stepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const currentStepRef = useRef(0);
+
+  const buildSteps = (): GenerationStep[] => [
+    { id: 'retrieve', label: 'Retrieving document content...', status: 'pending' },
+    { id: 'identify', label: 'Identifying key terms...', status: 'pending' },
+    { id: 'define', label: 'Generating definitions...', status: 'pending' },
+    { id: 'categorize', label: 'Categorizing by importance...', status: 'pending' },
+    { id: 'finalize', label: 'Finalizing glossary...', status: 'pending' },
+  ];
+
+  // Progress through steps while generating
+  useEffect(() => {
+    if (generating && generationSteps.length > 0) {
+      setGenerationSteps(steps => steps.map((s, i) => ({
+        ...s,
+        status: i === 0 ? 'active' : 'pending'
+      })));
+
+      const stepDuration = Math.max(2500, (numTerms * 500) / generationSteps.length);
+      stepIntervalRef.current = setInterval(() => {
+        const next = currentStepRef.current + 1;
+        if (next < generationSteps.length) {
+          currentStepRef.current = next;
+          setGenerationSteps(steps => steps.map((s, i) => ({
+            ...s,
+            status: i < next ? 'completed' : i === next ? 'active' : 'pending'
+          })));
+        }
+      }, stepDuration);
+    }
+
+    return () => {
+      if (stepIntervalRef.current) {
+        clearInterval(stepIntervalRef.current);
+      }
+    };
+  }, [generating, generationSteps.length, numTerms]);
+
+  // Cleanup on completion
+  useEffect(() => {
+    if (!generating && stepIntervalRef.current) {
+      clearInterval(stepIntervalRef.current);
+      stepIntervalRef.current = null;
+    }
+  }, [generating]);
 
   const loadDocuments = useCallback(async () => {
     try {
@@ -129,12 +184,22 @@ export function GlossaryPage() {
 
   const handleGenerate = async () => {
     if (!selectedDocument) return;
+    const steps = buildSteps();
+    setGenerationSteps(steps);
+    currentStepRef.current = 0;
     setGenerating(true);
     try {
       const response = await generateGlossary({
         document_id: selectedDocument,
         num_terms: numTerms,
       });
+
+      // Mark all steps as completed
+      setGenerationSteps(steps => steps.map(s => ({ ...s, status: 'completed' as const })));
+
+      // Small delay to show completion
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       await loadGlossaries(selectedDocument);
       const fullGlossary = await getGlossary(response.glossary_id);
       setSelectedGlossary(fullGlossary);
@@ -142,6 +207,7 @@ export function GlossaryPage() {
       console.error('Failed to generate glossary:', err);
     } finally {
       setGenerating(false);
+      setGenerationSteps([]);
     }
   };
 
@@ -235,25 +301,63 @@ export function GlossaryPage() {
               />
             </div>
             <div className="col-span-4 flex items-end">
-              <button
-                onClick={handleGenerate}
-                disabled={!selectedDocument || generating}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {generating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    Generate Glossary
-                  </>
-                )}
-              </button>
+              {!generating && (
+                <button
+                  onClick={handleGenerate}
+                  disabled={!selectedDocument}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Upload className="w-4 h-4" />
+                  Generate Glossary
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Progress Steps Display */}
+          {generating && generationSteps.length > 0 && (
+            <div className="mt-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800">
+              <div className="flex items-center gap-2 mb-4">
+                <Loader2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 animate-spin" />
+                <span className="font-medium text-indigo-800 dark:text-indigo-300">Generating your glossary...</span>
+              </div>
+              <div className="space-y-3">
+                {generationSteps.map((step, index) => (
+                  <div
+                    key={step.id}
+                    className={`flex items-center gap-3 transition-all duration-300 ${
+                      step.status === 'pending' ? 'opacity-40' :
+                      step.status === 'active' ? 'opacity-100' : 'opacity-70'
+                    }`}
+                  >
+                    <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
+                      step.status === 'completed' ? 'bg-indigo-500 text-white' :
+                      step.status === 'active' ? 'bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-400 animate-pulse' :
+                      'bg-gray-200 dark:bg-gray-700 text-gray-400'
+                    }`}>
+                      {step.status === 'completed' ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : step.status === 'active' ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <span className="text-xs">{index + 1}</span>
+                      )}
+                    </div>
+                    <span className={`text-sm ${
+                      step.status === 'active' ? 'text-indigo-700 dark:text-indigo-300 font-medium' :
+                      step.status === 'completed' ? 'text-indigo-600 dark:text-indigo-400' :
+                      'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {step.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 text-xs text-indigo-600 dark:text-indigo-400 text-center">
+                This may take a moment depending on the number of terms
+              </div>
+            </div>
+          )}
         </div>
 
         {glossaries.length > 0 && (
@@ -386,23 +490,21 @@ export function GlossaryPage() {
             <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">
               Generate a glossary to extract key terms and definitions from your document.
             </p>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {generating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" />
-                  Generate Glossary
-                </>
-              )}
-            </button>
+            {!generating && (
+              <button
+                onClick={handleGenerate}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                <Upload className="w-4 h-4" />
+                Generate Glossary
+              </button>
+            )}
+            {generating && (
+              <div className="inline-flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="font-medium">Generating glossary...</span>
+              </div>
+            )}
           </div>
         )}
       </main>
